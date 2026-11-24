@@ -74,7 +74,7 @@ O exemplo foi encurtado: a resposta real traz as 13 linhas e o corpo completo da
 
 A API oficial tem armadilhas que este servidor trata e registra na procedência:
 
-- **UF:** o Comex Stat tem numeração própria, e 15 UFs diferem do IBGE. MG é 33 no Comex Stat e 31 no IBGE; Sergipe é 31 no Comex Stat. Aqui a UF vai sempre pela sigla.
+- **UF:** o Comex Stat tem numeração própria, e 13 UFs diferem do IBGE. MG é 33 no Comex Stat e 31 no IBGE; Sergipe é 31 no Comex Stat. Aqui a UF vai sempre pela sigla.
 - **Município:** o código é o do IBGE, exceto em GO, MS, SP e DF, onde o prefixo muda. São Paulo (capital) é 3550308 no IBGE e 3450308 no Comex Stat. Aqui o município vai sempre pelo código IBGE, que também volta em cada linha.
 - **SH4:** precisa ir como texto com zero à esquerda (`"0901"`). Enviado como número, a consulta volta vazia, sem erro.
 - **Métricas:** frete, seguro e CIF só existem na importação. Pedidos inválidos são recusados com mensagem clara, antes de chegar à fonte.

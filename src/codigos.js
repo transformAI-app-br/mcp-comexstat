@@ -1,7 +1,7 @@
 // Tradução de códigos entre o padrão IBGE (o que o MCP recebe) e o do Comex Stat (o que a API oficial usa).
 // Conferido em 24/11/2026 contra /tables/uf e /tables/cities do Comex Stat e a API de localidades do IBGE.
 
-// UF: o Comex Stat tem numeração própria; 15 UFs diferem do IBGE (ex.: MG é 33 no Comex Stat e 31 no IBGE).
+// UF: o Comex Stat tem numeração própria; 13 UFs diferem do IBGE (ex.: MG é 33 no Comex Stat e 31 no IBGE).
 export const UF = {
   AC: { ibge: '12', comex: '12', nome: 'Acre' },
   AL: { ibge: '27', comex: '27', nome: 'Alagoas' },
