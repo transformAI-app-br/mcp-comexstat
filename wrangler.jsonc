@@ -1,0 +1,14 @@
+// MCP e API não oficiais do Comex Stat, em transformai.app.br. Sem segredos nem bancos: consulta a API pública
+// do MDIC e guarda respostas no cache do Cloudflare.
+{
+  "name": "transformai-mcp-comexstat",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-23",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "transformai.app.br/mcp/comexstat*", "zone_name": "transformai.app.br" },
+    { "pattern": "transformai.app.br/api/v1/comexstat*", "zone_name": "transformai.app.br" }
+  ],
+  "observability": { "enabled": true }
+}

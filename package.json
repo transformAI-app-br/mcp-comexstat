@@ -1,0 +1,14 @@
+{
+  "name": "transformai-mcp-comexstat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP e API não oficiais do Comex Stat (MDIC), com procedência em cada resposta.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "openapi": "node scripts/gerar-openapi.mjs",
+    "test": "node --test test/unidade.test.js",
+    "test:ao-vivo": "node --test test/ao-vivo.test.js",
+    "deploy": "node scripts/gerar-openapi.mjs && npx --yes wrangler@4.166.0 deploy"
+  }
+}
