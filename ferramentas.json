@@ -1,0 +1,268 @@
+[
+  {
+    "name": "atualizacao",
+    "title": "Última atualização",
+    "description": "Data da última atualização do Comex Stat e último mês com dados disponíveis.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "buscar_produto",
+    "title": "Buscar produto (NCM / SH)",
+    "description": "Procura códigos NCM e do Sistema Harmonizado (SH2, SH4, SH6) pela descrição do produto, nas tabelas oficiais do Comex Stat.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "texto": {
+          "type": "string",
+          "minLength": 3
+        }
+      },
+      "required": [
+        "texto"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "buscar_pais",
+    "title": "Buscar país ou bloco",
+    "description": "Procura códigos de países e blocos econômicos usados pelo Comex Stat.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "texto": {
+          "type": "string",
+          "minLength": 2
+        }
+      },
+      "required": [
+        "texto"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "consultar_comercio",
+    "title": "Consultar exportações ou importações",
+    "description": "Valores (US$ FOB), peso (kg) e quantidade de exportações ou importações brasileiras desde 1997, filtrados e detalhados por produto, país, bloco, UF, via e URF. A resposta traz a procedência: a consulta exata feita à API oficial e a data de atualização dos dados, para que possa ser refeita.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "fluxo": {
+          "type": "string",
+          "enum": [
+            "exportacao",
+            "importacao"
+          ]
+        },
+        "de": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}$"
+        },
+        "ate": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}$"
+        },
+        "por_mes": {
+          "type": "boolean",
+          "description": "Detalhar mês a mês. Padrão: false (total do período)."
+        },
+        "ncm": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{8}$"
+          },
+          "maxItems": 50,
+          "description": "Códigos NCM de 8 dígitos."
+        },
+        "sh4": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{4}$"
+          },
+          "maxItems": 50,
+          "description": "Posições SH4."
+        },
+        "pais": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 50,
+          "description": "Códigos de país (use buscar_pais)."
+        },
+        "uf": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "maxItems": 50,
+          "description": "Siglas das UFs de origem ou destino do produto."
+        },
+        "via": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 50,
+          "description": "Vias de transporte."
+        },
+        "detalhar_por": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ncm",
+              "sh4",
+              "pais",
+              "bloco",
+              "uf",
+              "via",
+              "urf"
+            ]
+          },
+          "maxItems": 3
+        },
+        "metricas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "fob",
+              "kg",
+              "quantidade",
+              "frete",
+              "seguro",
+              "cif"
+            ]
+          },
+          "description": "Padrão: fob e kg. Frete, seguro e CIF só em importação."
+        }
+      },
+      "required": [
+        "fluxo",
+        "de",
+        "ate"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": true
+    }
+  },
+  {
+    "name": "consultar_municipios",
+    "title": "Consultar por município",
+    "description": "Exportações ou importações por município, com produto no nível SH4 e país parceiro. O município é o do declarante da operação, não necessariamente o do produtor ou do comprador.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "fluxo": {
+          "type": "string",
+          "enum": [
+            "exportacao",
+            "importacao"
+          ]
+        },
+        "de": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}$"
+        },
+        "ate": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}$"
+        },
+        "por_mes": {
+          "type": "boolean"
+        },
+        "municipio_ibge": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{7}$"
+          },
+          "maxItems": 50,
+          "description": "Códigos IBGE de 7 dígitos."
+        },
+        "uf": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "maxItems": 50,
+          "description": "Siglas das UFs."
+        },
+        "sh4": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{4}$"
+          },
+          "maxItems": 50,
+          "description": "Posições SH4."
+        },
+        "pais": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 50,
+          "description": "Códigos de país."
+        },
+        "detalhar_por": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "municipio",
+              "sh4",
+              "pais"
+            ]
+          },
+          "maxItems": 3
+        },
+        "metricas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "fob",
+              "kg"
+            ]
+          }
+        }
+      },
+      "required": [
+        "fluxo",
+        "de",
+        "ate"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": true
+    }
+  }
+]
