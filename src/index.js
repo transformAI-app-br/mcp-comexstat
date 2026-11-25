@@ -1,4 +1,4 @@
-// Worker do MCP e da API do Comex Stat (não oficial), por Transformaí.
+// Worker do MCP e da API do Comex Stat: comexstat @ transformAI.app.br.
 //   /mcp/comexstat           servidor MCP (Streamable HTTP, sem estado)
 //   /api/v1/comexstat/...    API REST com as mesmas ferramentas (OpenAPI em /api/v1/comexstat/openapi.json)
 import { criarCliente } from './comexstat.js';

@@ -4,7 +4,7 @@ Servidor MCP e API REST para as **estatísticas oficiais de comércio exterior d
 
 Cada resposta traz a procedência: a consulta exata feita à API oficial, a data de atualização dos dados e as traduções de código aplicadas. Com isso, qualquer número pode ser refeito no próprio Comex Stat.
 
-> **Serviço não oficial.** Mantido pela [Transformaí](https://transformai.app.br/dados/), sem vínculo com o MDIC. A fonte é a [API pública do Comex Stat](https://api-comexstat.mdic.gov.br/docs).
+> `comexstat @ transformAI.app.br`, mantido pela [transformAI](https://transformai.app.br/), sem vínculo com o MDIC. A fonte é a [API pública do Comex Stat](https://api-comexstat.mdic.gov.br/docs).
 
 | | |
 |---|---|
