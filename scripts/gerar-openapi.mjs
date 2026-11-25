@@ -17,7 +17,7 @@ const spec = {
     summary: 'Estatísticas de comércio exterior do Brasil, com a procedência de cada resposta.',
     description:
       'Consulta a API pública do Comex Stat, traduz códigos do padrão IBGE para os próprios do Comex Stat e devolve, junto com os dados, a consulta exata feita à fonte e a data de atualização. As mesmas operações existem como ferramentas MCP em https://transformai.app.br/mcp/comexstat. A fonte é o MDIC, sem vínculo com a transformAI.',
-    contact: { name: 'transformAI', url: 'https://transformai.app.br/dados/' },
+    contact: { name: 'transformAI', url: 'https://transformai.app.br/' },
     license: { name: 'Apache-2.0 (código); dados de origem do MDIC', identifier: 'Apache-2.0' },
   },
   externalDocs: { description: 'Especificação TAI-BP-002', url: 'https://transformai.app.br/blueprints/comercio-exterior-comexstat' },

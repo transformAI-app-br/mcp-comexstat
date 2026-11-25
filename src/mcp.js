@@ -7,7 +7,7 @@ const SERVIDOR = {
   name: 'transformai-comexstat',
   title: 'comexstat @ transformAI.app.br',
   version: '0.2.0',
-  websiteUrl: 'https://transformai.app.br/dados/',
+  websiteUrl: 'https://transformai.app.br/',
 };
 const INSTRUCOES =
   'Estatísticas oficiais de comércio exterior do Brasil, do Comex Stat (MDIC), desde 1997. ' +
@@ -53,7 +53,7 @@ export async function tratarMcp(req, contexto) {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method === 'GET') {
     // Navegador: leva para a documentação. Cliente MCP pedindo stream: não há stream neste servidor.
-    if ((req.headers.get('Accept') ?? '').includes('text/html')) return Response.redirect('https://transformai.app.br/mcp/#comexstat', 302);
+    if ((req.headers.get('Accept') ?? '').includes('text/html')) return Response.redirect('https://github.com/transformAI-app-br/mcp-comexstat', 302);
     return new Response('Este servidor MCP não abre stream; use POST.', { status: 405, headers: { Allow: 'POST, OPTIONS', ...CORS } });
   }
   if (req.method !== 'POST') return new Response('Método não permitido', { status: 405, headers: { Allow: 'POST, OPTIONS', ...CORS } });
