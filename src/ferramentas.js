@@ -10,6 +10,10 @@ const FONTE = 'Comex Stat, Ministério do Desenvolvimento, Indústria, Comércio
 const DOCUMENTACAO = `${API}/docs`;
 const ESPECIFICACAO = 'https://transformai.app.br/blueprints/comercio-exterior-comexstat';
 const MAX_LINHAS = 500;
+// Descoberta progressiva: por padrão, as maiores categorias e o restante somado; detalhe "completo" traz tudo.
+const LIMITE_RESUMO = 10;
+const completo = (args) => args.detalhe === 'completo';
+const TEMPO = new Set(['ano', 'mes']);
 
 const FLUXO = { exportacao: 'export', importacao: 'import' };
 const METRICA = { fob: 'metricFOB', kg: 'metricKG', quantidade: 'metricStatistic', frete: 'metricFreight', seguro: 'metricInsurance', cif: 'metricCIF' };
@@ -35,18 +39,43 @@ function normalizarLinha(linha) {
   return saida;
 }
 
-function resumir(linhas) {
-  const ordenadas = [...linhas].sort((a, b) => (b.fob_usd ?? 0) - (a.fob_usd ?? 0));
+function somar(linhas) {
   const totais = {};
   for (const campo of NUMERICOS) {
     if (linhas.some((l) => l[campo] !== undefined)) totais[campo] = linhas.reduce((s, l) => s + (l[campo] ?? 0), 0);
   }
-  return {
+  return totais;
+}
+
+// Categoria = tudo o que não é tempo nem métrica (país, produto, município...). As categorias vêm da maior para
+// a menor em US$ FOB no período; dentro de cada uma, as linhas em ordem cronológica. No resumo, só as maiores.
+function resumir(linhas, args) {
+  const categorias = new Map();
+  for (const l of linhas) {
+    const chave = JSON.stringify(Object.entries(l).filter(([k]) => !TEMPO.has(k) && !NUMERICOS.has(k)));
+    const c = categorias.get(chave) ?? { fob: 0, linhas: [] };
+    c.fob += l.fob_usd ?? 0;
+    c.linhas.push(l);
+    categorias.set(chave, c);
+  }
+  const ordem = [...categorias.values()].sort((a, b) => b.fob - a.fob);
+  const cronologica = (a, b) => String(a.ano ?? '').localeCompare(String(b.ano ?? '')) || Number(a.mes ?? 0) - Number(b.mes ?? 0);
+  const n = completo(args) ? ordem.length : (args.limite ?? LIMITE_RESUMO);
+  const mostradas = ordem.slice(0, n).flatMap((c) => c.linhas.sort(cronologica));
+  const resto = ordem.slice(n);
+  const saida = {
     total_linhas: linhas.length,
-    truncado: linhas.length > MAX_LINHAS,
-    totais,
-    linhas: ordenadas.slice(0, MAX_LINHAS),
+    categorias: ordem.length,
+    totais: somar(linhas),
+    linhas: mostradas.slice(0, MAX_LINHAS),
+    truncado: mostradas.length > MAX_LINHAS,
   };
+  if (resto.length) {
+    const linhasResto = resto.flatMap((c) => c.linhas);
+    saida.outros = { categorias: resto.length, linhas: linhasResto.length, ...somar(linhasResto) };
+    saida.aviso = `Resumo: as ${n} maiores categorias em US$ FOB; as outras ${resto.length} estão somadas em "outros". Para todas, peça detalhe "completo".`;
+  }
+  return saida;
 }
 
 function conferirPeriodo({ de, ate }) {
@@ -67,18 +96,19 @@ async function atualizacaoDe(cliente, base) {
   return { atualizado_em: r.data.updated, ultimo_mes: `${r.data.year}-${String(r.data.monthNumber).padStart(2, '0')}` };
 }
 
-function procedencia({ caminho, corpo, atualizacao, traducoes = [], observacoes = [] }) {
-  return {
+// A consulta exata à API oficial vai sempre (é o que permite refazer o número); o resto, só no completo.
+function procedencia({ caminho, corpo, atualizacao, traducoes = [], observacoes = [] }, args) {
+  const base = {
     fonte: FONTE,
     consulta: { endpoint: `POST ${API}${caminho}`, corpo },
     dados_atualizados_em: atualizacao.atualizado_em,
     ultimo_mes_disponivel: atualizacao.ultimo_mes,
     consultado_em: new Date().toISOString(),
-    traducoes,
+    ...(traducoes.length ? { traducoes } : {}),
     observacoes,
-    como_refazer: `Envie o mesmo corpo para o endpoint acima. Documentação oficial: ${DOCUMENTACAO}`,
-    especificacao: ESPECIFICACAO,
   };
+  if (!completo(args)) return base;
+  return { ...base, traducoes, como_refazer: `Envie o mesmo corpo para o endpoint acima. Documentação oficial: ${DOCUMENTACAO}`, especificacao: ESPECIFICACAO };
 }
 
 function filtrosUf(siglas, traducoes) {
@@ -104,7 +134,9 @@ const executores = {
     return { dados_gerais: geral, dados_por_municipio: municipios, fonte: FONTE, documentacao: DOCUMENTACAO };
   },
 
-  async buscar_produto({ texto }, { cliente }) {
+  async buscar_produto(args, { cliente }) {
+    const { texto } = args;
+    const limite = completo(args) ? 30 : LIMITE_RESUMO;
     const q = encodeURIComponent(texto);
     const [ncm, sh] = await Promise.all([
       cliente.obter(`/tables/ncm?language=pt&search=${q}&page=1&perPage=30`, { ttl: 7 * 24 * 3600 }),
@@ -116,9 +148,11 @@ const executores = {
       sh4.set(l.headingCode, l.heading);
       sh2.set(l.chapterCode, l.chapter);
     }
+    const cortado = ncm.data.list.length > limite || sh.data.list.length > limite;
     return {
-      ncm: ncm.data.list.map((l) => ({ ncm: l.coNcm, descricao: l.noNCM, unidade: l.unit })),
-      sh6: sh.data.list.map((l) => ({ sh6: l.subHeadingCode, descricao: l.subHeading })),
+      ncm: ncm.data.list.slice(0, limite).map((l) => ({ ncm: l.coNcm, descricao: l.noNCM, unidade: l.unit })),
+      sh6: sh.data.list.slice(0, limite).map((l) => ({ sh6: l.subHeadingCode, descricao: l.subHeading })),
+      ...(cortado ? { aviso: `Mostrando até ${limite} códigos por nível. Refine o texto ou peça detalhe "completo".` } : {}),
       sh4: [...sh4].map(([codigo, descricao]) => ({ sh4: codigo, descricao })),
       sh2: [...sh2].map(([codigo, descricao]) => ({ sh2: codigo, descricao })),
       fonte: `${FONTE}, tabelas NCM e SH`,
@@ -165,7 +199,7 @@ const executores = {
     const [r, atualizacao] = await Promise.all([cliente.obter(caminho, { corpo }), atualizacaoDe(cliente, 'general')]);
     const observacoes = ['Valores em dólares americanos (US$), sem correção pela inflação.'];
     if (args.uf?.length) observacoes.push('UF do produto: de origem na exportação e de destino na importação.');
-    return { ...resumir(r.data.list.map(normalizarLinha)), procedencia: procedencia({ caminho, corpo, atualizacao, traducoes, observacoes }) };
+    return { ...resumir(r.data.list.map(normalizarLinha), args), procedencia: procedencia({ caminho, corpo, atualizacao, traducoes, observacoes }, args) };
   },
 
   async consultar_municipios(args, { cliente }) {
@@ -208,7 +242,7 @@ const executores = {
       'O município é o do declarante da operação, não necessariamente o do produtor ou do comprador.',
       'Valores em dólares americanos (US$), sem correção pela inflação.',
     ];
-    return { ...resumir(linhas), procedencia: procedencia({ caminho, corpo, atualizacao, traducoes, observacoes }) };
+    return { ...resumir(linhas, args), procedencia: procedencia({ caminho, corpo, atualizacao, traducoes, observacoes }, args) };
   },
 };
 

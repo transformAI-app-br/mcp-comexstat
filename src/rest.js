@@ -6,7 +6,7 @@ import { CORS } from './mcp.js';
 const BASE = '/api/v1/comexstat';
 const ROTAS = {
   'GET /atualizacao': ['atualizacao', () => ({})],
-  'GET /produtos': ['buscar_produto', (url) => ({ texto: url.searchParams.get('texto') ?? undefined })],
+  'GET /produtos': ['buscar_produto', (url) => ({ texto: url.searchParams.get('texto') ?? undefined, detalhe: url.searchParams.get('detalhe') ?? undefined })],
   'GET /paises': ['buscar_pais', (url) => ({ texto: url.searchParams.get('texto') ?? undefined })],
   'POST /comercio': ['consultar_comercio', null],
   'POST /municipios': ['consultar_municipios', null],

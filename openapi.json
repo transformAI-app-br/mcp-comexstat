@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Comex Stat (não oficial), por Transformaí",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "summary": "Estatísticas de comércio exterior do Brasil, com a procedência de cada resposta.",
     "description": "Serviço não oficial, sem vínculo com o MDIC. Consulta a API pública do Comex Stat, traduz códigos do padrão IBGE para os próprios do Comex Stat e devolve, junto com os dados, a consulta exata feita à fonte e a data de atualização. As mesmas operações existem como ferramentas MCP em https://transformai.app.br/mcp/comexstat.",
     "contact": {
@@ -79,6 +79,19 @@
               "description": "Parte da descrição, como 'café não torrado' ou 'minério de ferro'."
             },
             "description": "Parte da descrição, como 'café não torrado' ou 'minério de ferro'."
+          },
+          {
+            "name": "detalhe",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "resumo",
+                "completo"
+              ],
+              "description": "resumo (padrão): até 10 códigos por nível. completo: até 30."
+            }
           }
         ],
         "responses": {
@@ -150,7 +163,7 @@
         ],
         "operationId": "consultarComercio",
         "summary": "Consultar exportações ou importações",
-        "description": "Exportações ou importações do Brasil desde 1997: valor em US$ FOB, peso em kg e quantidade, com filtros e detalhamento por produto, país, bloco, UF, via e URF. UF vai por sigla; a tradução para os códigos próprios do Comex Stat é feita aqui e registrada na procedência. A resposta traz a consulta exata feita à API oficial e a data de atualização, para que o número possa ser refeito no Comex Stat.",
+        "description": "Exportações ou importações do Brasil desde 1997: valor em US$ FOB, peso em kg e quantidade, com filtros e detalhamento por produto, país, bloco, UF, via e URF. UF vai por sigla; a tradução para os códigos próprios do Comex Stat é feita aqui e registrada na procedência. A resposta traz a consulta exata feita à API oficial e a data de atualização, para que o número possa ser refeito no Comex Stat. Por padrão responde resumido: os totais, as 10 maiores categorias com toda a série de tempo delas e o restante somado em \"outros\".",
         "requestBody": {
           "required": true,
           "content": {
@@ -282,6 +295,20 @@
                     },
                     "maxItems": 6,
                     "description": "Padrão: fob e kg. Frete, seguro e CIF só existem na importação."
+                  },
+                  "limite": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 500,
+                    "description": "No resumo, quantas categorias mostrar (país, produto, município...), das maiores para as menores em US$ FOB. Padrão: 10."
+                  },
+                  "detalhe": {
+                    "type": "string",
+                    "enum": [
+                      "resumo",
+                      "completo"
+                    ],
+                    "description": "resumo (padrão): as maiores categorias em US$ FOB, o restante somado em \"outros\" e os totais. completo: todas as linhas (até 500) e a procedência com instruções para refazer. Use completo só quando o usuário pedir a lista inteira."
                   }
                 },
                 "required": [
@@ -340,7 +367,7 @@
         ],
         "operationId": "consultarMunicipios",
         "summary": "Consultar por município",
-        "description": "Exportações ou importações por município, desde 1997, com produto até o nível SH4 e país parceiro. Municípios vão pelo código IBGE e UFs pela sigla. O município é o do declarante da operação, não necessariamente o do produtor ou do comprador.",
+        "description": "Exportações ou importações por município, desde 1997, com produto até o nível SH4 e país parceiro. Municípios vão pelo código IBGE e UFs pela sigla. O município é o do declarante da operação, não necessariamente o do produtor ou do comprador. Por padrão responde resumido: os totais, as 10 maiores categorias com toda a série de tempo delas e o restante somado em \"outros\".",
         "requestBody": {
           "required": true,
           "content": {
@@ -431,6 +458,20 @@
                       ]
                     },
                     "maxItems": 2
+                  },
+                  "limite": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 500,
+                    "description": "No resumo, quantas categorias mostrar (país, produto, município...), das maiores para as menores em US$ FOB. Padrão: 10."
+                  },
+                  "detalhe": {
+                    "type": "string",
+                    "enum": [
+                      "resumo",
+                      "completo"
+                    ],
+                    "description": "resumo (padrão): as maiores categorias em US$ FOB, o restante somado em \"outros\" e os totais. completo: todas as linhas (até 500) e a procedência com instruções para refazer. Use completo só quando o usuário pedir a lista inteira."
                   }
                 },
                 "required": [
@@ -579,6 +620,7 @@
         "type": "object",
         "required": [
           "total_linhas",
+          "categorias",
           "truncado",
           "totais",
           "linhas",
@@ -589,9 +631,23 @@
             "type": "integer",
             "description": "Linhas devolvidas pela fonte."
           },
+          "categorias": {
+            "type": "integer",
+            "description": "Categorias distintas (país, produto, município...), sem contar o tempo."
+          },
           "truncado": {
             "type": "boolean",
-            "description": "Verdadeiro se mais de 500 linhas; vêm as 500 de maior valor FOB."
+            "description": "Verdadeiro se as linhas mostradas passariam de 500."
+          },
+          "outros": {
+            "type": "object",
+            "description": "No resumo: as categorias não mostradas, somadas.",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "aviso": {
+            "type": "string"
           },
           "totais": {
             "type": "object",
