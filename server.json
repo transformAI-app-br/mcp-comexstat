@@ -2,7 +2,7 @@
   "name": "br.app.transformai/comexstat",
   "title": "Comex Stat: comércio exterior do Brasil, por Transformaí (não oficial)",
   "description": "Consulta as estatísticas oficiais de exportação e importação do Comex Stat (MDIC) por produto, país, UF, município e via, com a procedência de cada resposta. Serviço não oficial.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "websiteUrl": "https://transformai.app.br/",
   "repository": {
     "url": "https://github.com/transformAI-app-br/mcp-comexstat",

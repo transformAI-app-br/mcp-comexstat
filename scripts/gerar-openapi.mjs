@@ -13,7 +13,7 @@ const spec = {
   openapi: '3.1.0',
   info: {
     title: 'Comex Stat (não oficial), por Transformaí',
-    version: '0.1.0',
+    version: '0.2.0',
     summary: 'Estatísticas de comércio exterior do Brasil, com a procedência de cada resposta.',
     description:
       'Serviço não oficial, sem vínculo com o MDIC. Consulta a API pública do Comex Stat, traduz códigos do padrão IBGE para os próprios do Comex Stat e devolve, junto com os dados, a consulta exata feita à fonte e a data de atualização. As mesmas operações existem como ferramentas MCP em https://transformai.app.br/mcp/comexstat.',
@@ -25,7 +25,7 @@ const spec = {
   tags: [{ name: 'Tabelas', description: 'Códigos de produtos, países e blocos.' }, { name: 'Consultas', description: 'Exportações e importações com procedência.' }],
   paths: {
     '/atualizacao': { get: { tags: ['Tabelas'], operationId: 'atualizacao', summary: f.atualizacao.title, description: f.atualizacao.description, responses: { 200: ok(ref('Atualizacao'), 'Datas de atualização'), 502: erros[502] } } },
-    '/produtos': { get: { tags: ['Tabelas'], operationId: 'buscarProduto', summary: f.buscar_produto.title, description: f.buscar_produto.description, parameters: [texto(f.buscar_produto)], responses: { 200: ok({ type: 'object' }, 'Produtos encontrados'), ...erros } } },
+    '/produtos': { get: { tags: ['Tabelas'], operationId: 'buscarProduto', summary: f.buscar_produto.title, description: f.buscar_produto.description, parameters: [texto(f.buscar_produto), { name: 'detalhe', in: 'query', required: false, schema: f.buscar_produto.inputSchema.properties.detalhe }], responses: { 200: ok({ type: 'object' }, 'Produtos encontrados'), ...erros } } },
     '/paises': { get: { tags: ['Tabelas'], operationId: 'buscarPais', summary: f.buscar_pais.title, description: f.buscar_pais.description, parameters: [texto(f.buscar_pais)], responses: { 200: ok({ type: 'object' }, 'Países e blocos encontrados'), ...erros } } },
     '/comercio': { post: { tags: ['Consultas'], operationId: 'consultarComercio', summary: f.consultar_comercio.title, description: f.consultar_comercio.description,
       requestBody: { required: true, content: { 'application/json': { schema: f.consultar_comercio.inputSchema, examples: { cafe_mg: { summary: 'Café (SH4 0901) exportado por MG em 2025, por país', value: { fluxo: 'exportacao', de: '2025-01', ate: '2025-12', uf: ['MG'], sh4: ['0901'], detalhar_por: ['pais'] } } } } } },
@@ -46,9 +46,12 @@ const spec = {
         dados_gerais: { type: 'object', properties: { atualizado_em: { type: 'string', format: 'date' }, ultimo_mes: { type: 'string' } } },
         dados_por_municipio: { type: 'object', properties: { atualizado_em: { type: 'string', format: 'date' }, ultimo_mes: { type: 'string' } } },
         fonte: { type: 'string' }, documentacao: { type: 'string', format: 'uri' } } },
-      Resultado: { type: 'object', required: ['total_linhas', 'truncado', 'totais', 'linhas', 'procedencia'], properties: {
+      Resultado: { type: 'object', required: ['total_linhas', 'categorias', 'truncado', 'totais', 'linhas', 'procedencia'], properties: {
         total_linhas: { type: 'integer', description: 'Linhas devolvidas pela fonte.' },
-        truncado: { type: 'boolean', description: 'Verdadeiro se mais de 500 linhas; vêm as 500 de maior valor FOB.' },
+        categorias: { type: 'integer', description: 'Categorias distintas (país, produto, município...), sem contar o tempo.' },
+        truncado: { type: 'boolean', description: 'Verdadeiro se as linhas mostradas passariam de 500.' },
+        outros: { type: 'object', description: 'No resumo: as categorias não mostradas, somadas.', additionalProperties: { type: 'number' } },
+        aviso: { type: 'string' },
         totais: { type: 'object', additionalProperties: { type: 'number' } },
         linhas: { type: 'array', items: { type: 'object', additionalProperties: true, properties: {
           ano: { type: 'string' }, mes: { type: 'string' }, pais: { type: 'string' }, uf: { type: 'string' }, municipio: { type: 'string' }, municipio_ibge: { type: ['string', 'null'] },

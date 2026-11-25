@@ -68,7 +68,16 @@ Exemplo real, minério de ferro (SH4 2601) exportado para a China em 2025, por U
 }
 ```
 
-O exemplo foi encurtado: a resposta real traz as 13 linhas e o corpo completo da consulta.
+O exemplo foi encurtado: a resposta real traz as 10 maiores UFs, as outras somadas em `outros`, e o corpo completo da consulta.
+
+### Respostas resumidas por padrão
+
+As consultas seguem descoberta progressiva, para não encher o contexto do assistente:
+
+- **Por padrão** (`detalhe: "resumo"`): os totais de todas as linhas, as 10 maiores categorias em US$ FOB (ou quantas pedir em `limite`) e o restante somado em `outros`. Categoria é o que foi pedido em `detalhar_por`: país, produto, UF, município. Com `por_mes`, cada categoria vem com a série inteira, em ordem cronológica.
+- **Quando o usuário pede tudo** (`detalhe: "completo"`): todas as linhas, até 500, e a procedência com as instruções para refazer a consulta.
+
+A consulta exata à API oficial vai sempre, nos dois modos. Exemplo: café não torrado exportado por MG em 2025, por país. O resumo, com 10 países, tem 1,8 KB; o completo, com 93 países, tem 7 KB. O total, US$ 11,26 bilhões, é o mesmo.
 
 ## O que este servidor resolve por você
 
@@ -84,7 +93,7 @@ A API oficial tem armadilhas que este servidor trata e registra na procedência:
 - **Período:** dados mensais desde 1997, até o último mês fechado. De 1989 a 1996 a metodologia é outra (NBM), e esses anos ficam fora deste servidor.
 - **Dados por município:** são mais agregados (produto até SH4) e usam o município do declarante da operação, que não é necessariamente o do produtor ou do comprador.
 - **Municípios novos:** três municípios do IBGE ainda não existem na tabela do Comex Stat. São Aroeiras do Itaim (PI), Figueirão (MS) e Boa Esperança do Norte (MT).
-- **Limites:** valem os mesmos de tempo e de linhas da API oficial. Respostas acima de 500 linhas vêm com as 500 de maior valor e `truncado: true`.
+- **Limites:** valem os mesmos de tempo e de linhas da API oficial. No modo completo, respostas acima de 500 linhas vêm com as categorias de maior valor e `truncado: true`.
 
 ## Como funciona
 

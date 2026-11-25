@@ -3,8 +3,15 @@
     "name": "atualizacao",
     "title": "Última atualização",
     "description": "Data da última atualização do Comex Stat e último mês com dados, para os dados gerais e para os dados por município.",
-    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false },
-    "annotations": { "readOnlyHint": true, "openWorldHint": true }
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": true
+    }
   },
   {
     "name": "buscar_produto",
@@ -12,11 +19,31 @@
     "description": "Procura produtos pela descrição nas tabelas oficiais do Comex Stat. Retorna códigos NCM (8 dígitos) e do Sistema Harmonizado: SH6, SH4 e SH2. Use os códigos em consultar_comercio e consultar_municipios.",
     "inputSchema": {
       "type": "object",
-      "properties": { "texto": { "type": "string", "minLength": 3, "maxLength": 80, "description": "Parte da descrição, como 'café não torrado' ou 'minério de ferro'." } },
-      "required": ["texto"],
+      "properties": {
+        "texto": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 80,
+          "description": "Parte da descrição, como 'café não torrado' ou 'minério de ferro'."
+        },
+        "detalhe": {
+          "type": "string",
+          "enum": [
+            "resumo",
+            "completo"
+          ],
+          "description": "resumo (padrão): até 10 códigos por nível. completo: até 30."
+        }
+      },
+      "required": [
+        "texto"
+      ],
       "additionalProperties": false
     },
-    "annotations": { "readOnlyHint": true, "openWorldHint": true }
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": true
+    }
   },
   {
     "name": "buscar_pais",
@@ -24,61 +51,299 @@
     "description": "Procura códigos de países e de blocos econômicos usados pelo Comex Stat.",
     "inputSchema": {
       "type": "object",
-      "properties": { "texto": { "type": "string", "minLength": 2, "maxLength": 60, "description": "Nome ou parte do nome, como 'China' ou 'Mercosul'." } },
-      "required": ["texto"],
+      "properties": {
+        "texto": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60,
+          "description": "Nome ou parte do nome, como 'China' ou 'Mercosul'."
+        }
+      },
+      "required": [
+        "texto"
+      ],
       "additionalProperties": false
     },
-    "annotations": { "readOnlyHint": true, "openWorldHint": true }
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": true
+    }
   },
   {
     "name": "consultar_comercio",
     "title": "Consultar exportações ou importações",
-    "description": "Exportações ou importações do Brasil desde 1997: valor em US$ FOB, peso em kg e quantidade, com filtros e detalhamento por produto, país, bloco, UF, via e URF. UF vai por sigla; a tradução para os códigos próprios do Comex Stat é feita aqui e registrada na procedência. A resposta traz a consulta exata feita à API oficial e a data de atualização, para que o número possa ser refeito no Comex Stat.",
+    "description": "Exportações ou importações do Brasil desde 1997: valor em US$ FOB, peso em kg e quantidade, com filtros e detalhamento por produto, país, bloco, UF, via e URF. UF vai por sigla; a tradução para os códigos próprios do Comex Stat é feita aqui e registrada na procedência. A resposta traz a consulta exata feita à API oficial e a data de atualização, para que o número possa ser refeito no Comex Stat. Por padrão responde resumido: os totais, as 10 maiores categorias com toda a série de tempo delas e o restante somado em \"outros\".",
     "inputSchema": {
       "type": "object",
       "properties": {
-        "fluxo": { "type": "string", "enum": ["exportacao", "importacao"] },
-        "de": { "type": "string", "pattern": "^(199[7-9]|20[0-9]{2})-(0[1-9]|1[0-2])$", "description": "Mês inicial, AAAA-MM, desde 1997-01." },
-        "ate": { "type": "string", "pattern": "^(199[7-9]|20[0-9]{2})-(0[1-9]|1[0-2])$", "description": "Mês final, AAAA-MM." },
-        "por_mes": { "type": "boolean", "description": "Detalhar mês a mês. Padrão: false, total por ano." },
-        "ncm": { "type": "array", "items": { "type": "string", "pattern": "^[0-9]{8}$" }, "maxItems": 50, "description": "Códigos NCM de 8 dígitos." },
-        "sh6": { "type": "array", "items": { "type": "string", "pattern": "^[0-9]{6}$" }, "maxItems": 50 },
-        "sh4": { "type": "array", "items": { "type": "string", "pattern": "^[0-9]{4}$" }, "maxItems": 50, "description": "Posições SH4, com zero à esquerda, como 0901." },
-        "sh2": { "type": "array", "items": { "type": "string", "pattern": "^[0-9]{2}$" }, "maxItems": 50 },
-        "pais": { "type": "array", "items": { "type": "string", "pattern": "^[0-9]{1,3}$" }, "maxItems": 50, "description": "Códigos de país do Comex Stat (use buscar_pais)." },
-        "bloco": { "type": "array", "items": { "type": "string", "pattern": "^[0-9]{1,3}$" }, "maxItems": 20, "description": "Códigos de bloco econômico (use buscar_pais)." },
-        "uf": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z]{2}$" }, "maxItems": 27, "description": "Siglas das UFs de origem (exportação) ou destino (importação) do produto." },
-        "via": { "type": "array", "items": { "type": "string", "pattern": "^[0-9]{2}$" }, "maxItems": 20, "description": "Vias de transporte: 01 marítima, 04 aérea, 06 ferroviária, 07 rodoviária, entre outras." },
-        "detalhar_por": { "type": "array", "items": { "type": "string", "enum": ["ncm", "sh6", "sh4", "sh2", "pais", "bloco", "uf", "via", "urf"] }, "maxItems": 3 },
-        "metricas": { "type": "array", "items": { "type": "string", "enum": ["fob", "kg", "quantidade", "frete", "seguro", "cif"] }, "maxItems": 6, "description": "Padrão: fob e kg. Frete, seguro e CIF só existem na importação." }
+        "fluxo": {
+          "type": "string",
+          "enum": [
+            "exportacao",
+            "importacao"
+          ]
+        },
+        "de": {
+          "type": "string",
+          "pattern": "^(199[7-9]|20[0-9]{2})-(0[1-9]|1[0-2])$",
+          "description": "Mês inicial, AAAA-MM, desde 1997-01."
+        },
+        "ate": {
+          "type": "string",
+          "pattern": "^(199[7-9]|20[0-9]{2})-(0[1-9]|1[0-2])$",
+          "description": "Mês final, AAAA-MM."
+        },
+        "por_mes": {
+          "type": "boolean",
+          "description": "Detalhar mês a mês. Padrão: false, total por ano."
+        },
+        "ncm": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{8}$"
+          },
+          "maxItems": 50,
+          "description": "Códigos NCM de 8 dígitos."
+        },
+        "sh6": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{6}$"
+          },
+          "maxItems": 50
+        },
+        "sh4": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{4}$"
+          },
+          "maxItems": 50,
+          "description": "Posições SH4, com zero à esquerda, como 0901."
+        },
+        "sh2": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{2}$"
+          },
+          "maxItems": 50
+        },
+        "pais": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{1,3}$"
+          },
+          "maxItems": 50,
+          "description": "Códigos de país do Comex Stat (use buscar_pais)."
+        },
+        "bloco": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{1,3}$"
+          },
+          "maxItems": 20,
+          "description": "Códigos de bloco econômico (use buscar_pais)."
+        },
+        "uf": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z]{2}$"
+          },
+          "maxItems": 27,
+          "description": "Siglas das UFs de origem (exportação) ou destino (importação) do produto."
+        },
+        "via": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{2}$"
+          },
+          "maxItems": 20,
+          "description": "Vias de transporte: 01 marítima, 04 aérea, 06 ferroviária, 07 rodoviária, entre outras."
+        },
+        "detalhar_por": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ncm",
+              "sh6",
+              "sh4",
+              "sh2",
+              "pais",
+              "bloco",
+              "uf",
+              "via",
+              "urf"
+            ]
+          },
+          "maxItems": 3
+        },
+        "metricas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "fob",
+              "kg",
+              "quantidade",
+              "frete",
+              "seguro",
+              "cif"
+            ]
+          },
+          "maxItems": 6,
+          "description": "Padrão: fob e kg. Frete, seguro e CIF só existem na importação."
+        },
+        "limite": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500,
+          "description": "No resumo, quantas categorias mostrar (país, produto, município...), das maiores para as menores em US$ FOB. Padrão: 10."
+        },
+        "detalhe": {
+          "type": "string",
+          "enum": [
+            "resumo",
+            "completo"
+          ],
+          "description": "resumo (padrão): as maiores categorias em US$ FOB, o restante somado em \"outros\" e os totais. completo: todas as linhas (até 500) e a procedência com instruções para refazer. Use completo só quando o usuário pedir a lista inteira."
+        }
       },
-      "required": ["fluxo", "de", "ate"],
+      "required": [
+        "fluxo",
+        "de",
+        "ate"
+      ],
       "additionalProperties": false
     },
-    "annotations": { "readOnlyHint": true, "openWorldHint": true }
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": true
+    }
   },
   {
     "name": "consultar_municipios",
     "title": "Consultar por município",
-    "description": "Exportações ou importações por município, desde 1997, com produto até o nível SH4 e país parceiro. Municípios vão pelo código IBGE e UFs pela sigla. O município é o do declarante da operação, não necessariamente o do produtor ou do comprador.",
+    "description": "Exportações ou importações por município, desde 1997, com produto até o nível SH4 e país parceiro. Municípios vão pelo código IBGE e UFs pela sigla. O município é o do declarante da operação, não necessariamente o do produtor ou do comprador. Por padrão responde resumido: os totais, as 10 maiores categorias com toda a série de tempo delas e o restante somado em \"outros\".",
     "inputSchema": {
       "type": "object",
       "properties": {
-        "fluxo": { "type": "string", "enum": ["exportacao", "importacao"] },
-        "de": { "type": "string", "pattern": "^(199[7-9]|20[0-9]{2})-(0[1-9]|1[0-2])$" },
-        "ate": { "type": "string", "pattern": "^(199[7-9]|20[0-9]{2})-(0[1-9]|1[0-2])$" },
-        "por_mes": { "type": "boolean" },
-        "municipio_ibge": { "type": "array", "items": { "type": "string", "pattern": "^[0-9]{7}$" }, "maxItems": 50 },
-        "uf": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z]{2}$" }, "maxItems": 27 },
-        "sh4": { "type": "array", "items": { "type": "string", "pattern": "^[0-9]{4}$" }, "maxItems": 50 },
-        "sh2": { "type": "array", "items": { "type": "string", "pattern": "^[0-9]{2}$" }, "maxItems": 50 },
-        "pais": { "type": "array", "items": { "type": "string", "pattern": "^[0-9]{1,3}$" }, "maxItems": 50 },
-        "detalhar_por": { "type": "array", "items": { "type": "string", "enum": ["municipio", "sh4", "sh2", "pais", "bloco", "uf"] }, "maxItems": 3 },
-        "metricas": { "type": "array", "items": { "type": "string", "enum": ["fob", "kg"] }, "maxItems": 2 }
+        "fluxo": {
+          "type": "string",
+          "enum": [
+            "exportacao",
+            "importacao"
+          ]
+        },
+        "de": {
+          "type": "string",
+          "pattern": "^(199[7-9]|20[0-9]{2})-(0[1-9]|1[0-2])$"
+        },
+        "ate": {
+          "type": "string",
+          "pattern": "^(199[7-9]|20[0-9]{2})-(0[1-9]|1[0-2])$"
+        },
+        "por_mes": {
+          "type": "boolean"
+        },
+        "municipio_ibge": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{7}$"
+          },
+          "maxItems": 50
+        },
+        "uf": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z]{2}$"
+          },
+          "maxItems": 27
+        },
+        "sh4": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{4}$"
+          },
+          "maxItems": 50
+        },
+        "sh2": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{2}$"
+          },
+          "maxItems": 50
+        },
+        "pais": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9]{1,3}$"
+          },
+          "maxItems": 50
+        },
+        "detalhar_por": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "municipio",
+              "sh4",
+              "sh2",
+              "pais",
+              "bloco",
+              "uf"
+            ]
+          },
+          "maxItems": 3
+        },
+        "metricas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "fob",
+              "kg"
+            ]
+          },
+          "maxItems": 2
+        },
+        "limite": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500,
+          "description": "No resumo, quantas categorias mostrar (país, produto, município...), das maiores para as menores em US$ FOB. Padrão: 10."
+        },
+        "detalhe": {
+          "type": "string",
+          "enum": [
+            "resumo",
+            "completo"
+          ],
+          "description": "resumo (padrão): as maiores categorias em US$ FOB, o restante somado em \"outros\" e os totais. completo: todas as linhas (até 500) e a procedência com instruções para refazer. Use completo só quando o usuário pedir a lista inteira."
+        }
       },
-      "required": ["fluxo", "de", "ate"],
+      "required": [
+        "fluxo",
+        "de",
+        "ate"
+      ],
       "additionalProperties": false
     },
-    "annotations": { "readOnlyHint": true, "openWorldHint": true }
+    "annotations": {
+      "readOnlyHint": true,
+      "openWorldHint": true
+    }
   }
 ]
