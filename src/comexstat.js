@@ -1,6 +1,6 @@
 // Cliente da API pública do Comex Stat (MDIC), com cache para não sobrecarregar o serviço oficial.
 export const API = 'https://api-comexstat.mdic.gov.br';
-const AGENTE = 'transformai-mcp-comexstat/0.1 (+https://transformai.app.br/dados/)';
+const AGENTE = 'transformai-mcp-comexstat/0.1 (+https://transformai.app.br/)';
 
 export class ErroFonte extends Error {}
 
