@@ -1,7 +1,8 @@
-// Testes sem rede: o cliente do Comex Stat é falso. Uso: npm test
+// Testes sem rede, com fonte e cache falsos. Uso: npm test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { criarApp } from '../src/index.js';
+import { criarCliente, ErroFonte } from '../src/comexstat.js';
 import { municipioComexParaIbge, municipioIbgeParaComex, ufParaComex } from '../src/codigos.js';
 
 function clienteFalso() {
@@ -31,6 +32,175 @@ async function rpc(app, mensagem, cabecalhos = {}) {
   }));
   return { status: r.status, corpo: r.status === 202 ? null : await r.json() };
 }
+
+const HORA = 3_600_000;
+const TRINTA_DIAS = 30 * 24 * HORA;
+const DATA_INICIAL = '2026-11-18T12:00:00.000Z';
+const CAMINHO_COMERCIO = '/general?language=pt';
+const CONSULTA = { fluxo: 'exportacao', de: '2025-01', ate: '2025-12' };
+
+function ambienteCache(t, fetch) {
+  let agora = Date.parse(DATA_INICIAL);
+  t.mock.method(Date, 'now', () => agora);
+  // Mantém as entradas além do max-age para também exercitar o limite de idade do cliente.
+  const entradas = new Map();
+  const cache = {
+    async match(chave) { return entradas.get(chave.url)?.clone(); },
+    async put(chave, resposta) { entradas.set(chave.url, resposta.clone()); },
+  };
+  return { cliente: criarCliente({ cache, fetch }), entradas, avancar: (ms) => { agora += ms; } };
+}
+
+async function chamarFerramenta(app, nome, args) {
+  return (await rpc(app, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: nome, arguments: args } })).corpo.result;
+}
+
+test('cache: usa a resposta fresca sem consultar a fonte pelas primeiras 6 horas', async (t) => {
+  const data = { success: true, data: { list: [] } };
+  const fonte = t.mock.fn(async () => Response.json(data));
+  const { cliente, avancar, entradas } = ambienteCache(t, fonte);
+  const opcoes = { corpo: { flow: 'export' }, aoUsarCopia: t.mock.fn() };
+  assert.deepEqual(await cliente.obter(CAMINHO_COMERCIO, opcoes), data);
+  avancar(6 * HORA - 1);
+  assert.deepEqual(await cliente.obter(CAMINHO_COMERCIO, opcoes), data);
+  assert.equal(fonte.mock.callCount(), 1);
+  assert.equal(opcoes.aoUsarCopia.mock.callCount(), 0);
+  assert.equal([...entradas.values()][0].headers.get('Cache-Control'), `public, max-age=${TRINTA_DIAS / 1000}`);
+});
+
+test('cache: uma entrada antiga sem data ainda vale enquanto estiver no cache', async (t) => {
+  const fonte = t.mock.fn(async () => Response.json({ data: 1 }));
+  const { cliente, entradas } = ambienteCache(t, fonte);
+  await cliente.obter(CAMINHO_COMERCIO);
+  const [chave] = entradas.keys();
+  entradas.set(chave, Response.json({ data: 2 }, { headers: { 'Cache-Control': 'public, max-age=21600' } }));
+  assert.deepEqual(await cliente.obter(CAMINHO_COMERCIO), { data: 2 });
+  assert.equal(fonte.mock.callCount(), 1);
+});
+
+test('cache: renova a cópia vencida quando a fonte responde', async (t) => {
+  let versao = 1;
+  const fonte = t.mock.fn(async () => Response.json({ data: versao }));
+  const { cliente, avancar } = ambienteCache(t, fonte);
+  assert.deepEqual(await cliente.obter(CAMINHO_COMERCIO), { data: 1 });
+  avancar(6 * HORA);
+  versao = 2;
+  assert.deepEqual(await cliente.obter(CAMINHO_COMERCIO), { data: 2 });
+  avancar(6 * HORA - 1);
+  assert.deepEqual(await cliente.obter(CAMINHO_COMERCIO), { data: 2 });
+  assert.equal(fonte.mock.callCount(), 2);
+});
+
+test('MCP: indica as cópias vencidas na procedência em caso de 503 ou erro de rede', async (t) => {
+  const respostas = clienteFalso();
+  let indisponivel = false;
+  const { cliente, avancar } = ambienteCache(t, async (url, { body }) => {
+    if (indisponivel) {
+      if (body) throw new TypeError('rede indisponível');
+      return new Response(null, { status: 503 });
+    }
+    return Response.json(await respostas.obter(new URL(url).pathname));
+  });
+  const app = criarApp({ cliente });
+  const normal = (await chamarFerramenta(app, 'consultar_comercio', CONSULTA)).structuredContent;
+  avancar(HORA);
+  indisponivel = true;
+  const parcial = (await chamarFerramenta(app, 'consultar_comercio', CONSULTA)).structuredContent;
+  const aviso = (caminho) => `O serviço do Comex Stat não respondeu com sucesso à requisição ${caminho}. Esta parte da resposta usa a cópia armazenada em ${DATA_INICIAL} (UTC).`;
+  const avisoDatas = aviso('/general/dates/updated?language=pt');
+  assert.deepEqual(parcial.procedencia.observacoes, [...normal.procedencia.observacoes, avisoDatas]);
+
+  avancar(5 * HORA);
+  const resposta = await chamarFerramenta(app, 'consultar_comercio', CONSULTA);
+  const saida = resposta.structuredContent;
+  assert.deepEqual(saida.totais, normal.totais);
+  assert.equal(saida.procedencia.dados_atualizados_em, normal.procedencia.dados_atualizados_em);
+  assert.deepEqual(saida.procedencia.observacoes.slice(normal.procedencia.observacoes.length).sort(), [aviso(CAMINHO_COMERCIO), avisoDatas].sort());
+  assert.deepEqual(JSON.parse(resposta.content[0].text), saida);
+});
+
+test('cache: usa a cópia se o tempo limite for atingido durante a leitura da resposta', async (t) => {
+  const { cliente, avancar } = ambienteCache(t, async (_url, { signal }) => ({
+    ok: true,
+    async json() {
+      signal?.throwIfAborted();
+      return { data: 1 };
+    },
+  }));
+  await cliente.obter(CAMINHO_COMERCIO);
+  avancar(6 * HORA);
+  const timeout = t.mock.method(AbortSignal, 'timeout', () => AbortSignal.abort(new DOMException('Tempo limite atingido', 'TimeoutError')));
+  const aoUsarCopia = t.mock.fn();
+  assert.deepEqual(await cliente.obter(CAMINHO_COMERCIO, { aoUsarCopia }), { data: 1 });
+  assert.deepEqual(timeout.mock.calls[0].arguments, [15_000]);
+  assert.deepEqual(aoUsarCopia.mock.calls[0].arguments, [DATA_INICIAL]);
+});
+
+test('MCP: sem cópia para o mesmo corpo, mantém o erro da fonte', async (t) => {
+  const respostas = clienteFalso();
+  let indisponivel = false;
+  const { cliente } = ambienteCache(t, async (url, { body }) => {
+    if (indisponivel && body) return new Response(null, { status: 503 });
+    return Response.json(await respostas.obter(new URL(url).pathname));
+  });
+  const app = criarApp({ cliente });
+  assert.ok((await chamarFerramenta(app, 'consultar_comercio', CONSULTA)).structuredContent);
+  indisponivel = true;
+  const r = await chamarFerramenta(app, 'consultar_comercio', { ...CONSULTA, fluxo: 'importacao' });
+  assert.equal(r.isError, true);
+  assert.equal(r.content[0].text, 'O Comex Stat respondeu 503 para POST /general?language=pt.');
+});
+
+test('cache: aceita cópia de até 30 dias e recusa cópia mais antiga', async (t) => {
+  let indisponivel = false;
+  const { cliente, avancar } = ambienteCache(t, async () => indisponivel ? new Response(null, { status: 503 }) : Response.json({ data: 1 }));
+  await cliente.obter(CAMINHO_COMERCIO);
+  indisponivel = true;
+  avancar(TRINTA_DIAS);
+  assert.deepEqual(await cliente.obter(CAMINHO_COMERCIO), { data: 1 });
+  avancar(1);
+  await assert.rejects(cliente.obter(CAMINHO_COMERCIO), ErroFonte);
+});
+
+test('MCP: indica o uso da tabela de municípios vencida a cada consulta', async (t) => {
+  const respostas = clienteFalso();
+  let indisponivel = false;
+  const { cliente, avancar } = ambienteCache(t, async (url) => {
+    const caminho = new URL(url).pathname;
+    if (indisponivel && caminho === '/tables/cities') return new Response(null, { status: 503 });
+    return Response.json(await respostas.obter(caminho));
+  });
+  const app = criarApp({ cliente });
+  const args = { ...CONSULTA, detalhar_por: ['municipio'] };
+  const normal = (await chamarFerramenta(app, 'consultar_municipios', args)).structuredContent;
+  avancar(24 * HORA);
+  indisponivel = true;
+  for (let i = 0; i < 2; i++) {
+    const saida = (await chamarFerramenta(app, 'consultar_municipios', args)).structuredContent;
+    assert.deepEqual(saida.linhas, normal.linhas);
+    assert.match(saida.procedencia.observacoes.at(-1), /\/tables\/cities\?.*cópia armazenada em 2026-11-18T12:00:00\.000Z/);
+  }
+});
+
+test('REST: a atualização ganha procedência quando usa uma cópia', async (t) => {
+  const respostas = clienteFalso();
+  let indisponivel = false;
+  const { cliente, avancar } = ambienteCache(t, async (url) => indisponivel
+    ? new Response(null, { status: 503 })
+    : Response.json(await respostas.obter(new URL(url).pathname)));
+  const app = criarApp({ cliente });
+  const consultar = () => app.fetch(new Request('https://transformai.app.br/api/v1/comexstat/atualizacao'));
+  const normal = await (await consultar()).json();
+  assert.equal(normal.procedencia, undefined);
+  avancar(HORA);
+  indisponivel = true;
+  const resposta = await consultar();
+  assert.equal(resposta.status, 200);
+  const { dados_gerais, procedencia } = await resposta.json();
+  assert.deepEqual(dados_gerais, normal.dados_gerais);
+  assert.equal(procedencia.observacoes.length, 2);
+  assert.ok(procedencia.observacoes.every((aviso) => aviso.includes(DATA_INICIAL)));
+});
 
 test('códigos: UF e município do IBGE para o Comex Stat e de volta', () => {
   assert.equal(ufParaComex('MG'), '33');

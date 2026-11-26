@@ -120,12 +120,9 @@ function filtrosUf(siglas, traducoes) {
   });
 }
 
-let mapaCidades = null; // "Nome - UF" → código IBGE, montado a partir de /tables/cities
 async function cidadesPorNome(cliente) {
-  if (mapaCidades) return mapaCidades;
   const r = await cliente.obter('/tables/cities?language=pt&page=1&perPage=10000', { ttl: 24 * 3600 });
-  mapaCidades = new Map(r.data.map((c) => [c.text, municipioComexParaIbge(c.id)]));
-  return mapaCidades;
+  return new Map(r.data.map((c) => [c.text, municipioComexParaIbge(c.id)]));
 }
 
 const executores = {
@@ -252,7 +249,17 @@ export async function executar(nome, args, contexto) {
   if (!definicao) return { erro: `Ferramenta desconhecida: ${nome}.`, tipo: 'entrada' };
   try {
     const validos = validar(definicao.inputSchema, args ?? {});
-    return { resultado: await executores[nome](validos, contexto) };
+    const observacoes = [];
+    const cliente = { obter: (caminho, opcoes) => contexto.cliente.obter(caminho, {
+      ...opcoes,
+      aoUsarCopia: (armazenadaEm) => observacoes.push(`O serviço do Comex Stat não respondeu com sucesso à requisição ${caminho}. Esta parte da resposta usa a cópia armazenada em ${armazenadaEm} (UTC).`),
+    }) };
+    const resultado = await executores[nome](validos, { ...contexto, cliente });
+    if (observacoes.length) {
+      resultado.procedencia ??= {};
+      resultado.procedencia.observacoes = [...(resultado.procedencia.observacoes ?? []), ...observacoes];
+    }
+    return { resultado };
   } catch (erro) {
     if (erro instanceof ErroEntrada) return { erro: erro.message, tipo: 'entrada' };
     if (erro instanceof ErroFonte) return { erro: erro.message, tipo: 'fonte' };
