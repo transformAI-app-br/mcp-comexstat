@@ -105,9 +105,13 @@ src/mcp.js          MCP sem estado sobre Streamable HTTP (JSON-RPC)
 src/rest.js         API REST com as mesmas ferramentas
 src/ferramentas.js  tradução dos parâmetros, normalização e procedência
 src/codigos.js      UF e município: IBGE ↔ Comex Stat
-src/comexstat.js    cliente da API oficial, com cache (6 h para consultas, 7 dias para tabelas)
+src/comexstat.js    cliente da API oficial, com cache e cópia para indisponibilidade
 ferramentas.json    definições das ferramentas (MCP e base do openapi.json)
 ```
+
+As consultas ficam frescas por 6 horas, as datas de atualização por 1 hora, a tabela de municípios por 24 horas e as demais tabelas por 7 dias. Após esse prazo, o servidor tenta consultar a API oficial novamente.
+
+Se ainda houver no cache uma resposta bem-sucedida de até 30 dias para o mesmo método, URL e corpo, a tentativa tem um limite de 15 segundos. Em caso de falha de rede, resposta HTTP fora da faixa 2xx ou estouro desse prazo, o servidor usa a cópia. A procedência do MCP e da API REST informa quais partes vieram de uma cópia e quando ela foi armazenada, em UTC. Sem uma cópia válida, a ferramenta retorna o erro da fonte como de costume. A retenção de até 30 dias vale para as respostas armazenadas a partir desta mudança.
 
 ```bash
 npm test             # testes sem rede
